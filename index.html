@@ -45,6 +45,20 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .modal-enter-active, .modal-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .modal-enter-from, .modal-leave-to {
+            opacity: 0;
+        }
+        .modal-content-enter-active, .modal-content-leave-active {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-content-enter-from, .modal-content-leave-to {
+            transform: scale(0.9);
+            opacity: 0;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -61,7 +75,7 @@
                 <input 
                     v-model="searchQuery" 
                     type="text" 
-                    placeholder="搜索宝可梦名字或编号..." 
+                    placeholder="搜索名字或编号..." 
                     class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                 <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +109,7 @@
         <!-- Pokemon Grid -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-20">
             <div class="loading-spinner mb-4"></div>
-            <p class="text-gray-500">正在召唤宝可梦...</p>
+            <p class="text-gray-500">正在召唤宝可梦 (加载前251只)...</p>
         </div>
 
         <div v-else-if="filteredPokemon.length === 0" class="text-center py-20 text-gray-500">
@@ -106,6 +120,7 @@
             <div 
                 v-for="pokemon in filteredPokemon" 
                 :key="pokemon.id"
+                @click="showDetail(pokemon)"
                 class="pokemon-card bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl cursor-pointer"
             >
                 <div class="bg-gray-50 p-6 flex justify-center items-center relative h-48">
@@ -130,13 +145,72 @@
                             {{ typeTranslations[type] || type }}
                         </span>
                     </div>
-                    <div class="mt-4 flex justify-between text-xs text-gray-400">
-                        <span>身高: {{ pokemon.height / 10 }}m</span>
-                        <span>体重: {{ pokemon.weight / 10 }}kg</span>
-                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Detail Modal -->
+        <transition name="modal">
+            <div v-if="selectedPokemon" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60" @click.self="closeDetail">
+                <transition name="modal-content">
+                    <div v-if="selectedPokemon" class="bg-white rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl relative">
+                        <button @click="closeDetail" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+
+                        <div :class="`type-${selectedPokemon.types[0]}`" class="h-48 flex justify-center items-center p-8 relative">
+                            <span class="absolute top-6 left-8 text-white text-opacity-30 font-bold text-6xl">#{{ String(selectedPokemon.id).padStart(3, '0') }}</span>
+                            <img :src="selectedPokemon.image" :alt="selectedPokemon.name" class="w-48 h-48 object-contain z-10 drop-shadow-lg">
+                        </div>
+
+                        <div class="p-8 pt-4">
+                            <div class="text-center mb-6">
+                                <h2 class="text-3xl font-bold text-gray-800 mb-1 capitalize">{{ selectedPokemon.chineseName || selectedPokemon.name }}</h2>
+                                <p class="text-gray-400 uppercase tracking-widest text-sm mb-4">{{ selectedPokemon.name }}</p>
+                                <div class="flex justify-center gap-3">
+                                    <span 
+                                        v-for="type in selectedPokemon.types" 
+                                        :key="type"
+                                        :class="`type-${type}`"
+                                        class="px-4 py-1 rounded-full text-xs font-bold text-white uppercase shadow-sm"
+                                    >
+                                        {{ typeTranslations[type] || type }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4 mb-8">
+                                <div class="bg-gray-50 p-3 rounded-2xl text-center">
+                                    <p class="text-gray-400 text-xs mb-1">身高</p>
+                                    <p class="font-bold text-gray-700">{{ selectedPokemon.height / 10 }}m</p>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded-2xl text-center">
+                                    <p class="text-gray-400 text-xs mb-1">体重</p>
+                                    <p class="font-bold text-gray-700">{{ selectedPokemon.weight / 10 }}kg</p>
+                                </div>
+                            </div>
+
+                            <div v-if="selectedPokemon.stats" class="space-y-3">
+                                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">能力数值</h3>
+                                <div v-for="stat in selectedPokemon.stats" :key="stat.name" class="flex items-center gap-4">
+                                    <span class="text-xs font-bold text-gray-400 w-24 uppercase">{{ statTranslations[stat.name] || stat.name }}</span>
+                                    <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div 
+                                            :style="{ width: `${(stat.value / 255) * 100}%` }" 
+                                            :class="`type-${selectedPokemon.types[0]}`"
+                                            class="h-full transition-all duration-1000"
+                                        ></div>
+                                    </div>
+                                    <span class="text-xs font-bold text-gray-600 w-8 text-right">{{ stat.value }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </transition>
+            </div>
+        </transition>
     </div>
 
     <script>
@@ -148,8 +222,9 @@
                 const loading = ref(true);
                 const searchQuery = ref('');
                 const selectedType = ref('all');
+                const selectedPokemon = ref(null);
 
-                // 预置第一世代 151 只宝可梦的中文名称，确保加载速度和准确性
+                // 预置第一、二世代共 251 只宝可梦的中文名称
                 const chineseNames = {
                     1: "妙蛙种子", 2: "妙蛙草", 3: "妙蛙花", 4: "小火龙", 5: "火恐龙", 6: "喷火龙", 7: "杰尼龟", 8: "卡咪龟", 9: "水箭龟", 10: "绿毛虫",
                     11: "铁甲蛹", 12: "巴大蝶", 13: "独角虫", 14: "铁壳蛹", 15: "大针蜂", 16: "波波", 17: "比比鸟", 18: "大比鸟", 19: "小拉达", 20: "拉达",
@@ -165,7 +240,17 @@
                     111: "独角犀牛", 112: "钻角犀兽", 113: "吉利蛋", 114: "蔓藤怪", 115: "袋兽", 116: "墨海马", 117: "海刺龙", 118: "角金鱼", 119: "金鱼王", 120: "海星星",
                     121: "宝石海星", 122: "魔墙人偶", 123: "飞天螳螂", 124: "迷唇姐", 125: "电击兽", 126: "鸭嘴火兽", 127: "凯罗斯", 128: "肯泰罗", 129: "鲤鱼王", 130: "暴鲤龙",
                     131: "拉普拉斯", 132: "百变怪", 133: "伊布", 134: "水伊布", 135: "雷伊布", 136: "火伊布", 137: "多边兽", 138: "菊石兽", 139: "多刺菊石兽", 140: "化石盔",
-                    141: "镰刀盔", 142: "化石翼龙", 143: "卡比兽", 144: "急冻鸟", 145: "闪电鸟", 146: "火焰鸟", 147: "迷你龙", 148: "哈克龙", 149: "快龙", 150: "超梦", 151: "梦幻"
+                    141: "镰刀盔", 142: "化石翼龙", 143: "卡比兽", 144: "急冻鸟", 145: "闪电鸟", 146: "火焰鸟", 147: "迷你龙", 148: "哈克龙", 149: "快龙", 150: "超梦", 151: "梦幻",
+                    152: "菊草叶", 153: "月桂叶", 154: "大竺葵", 155: "火球鼠", 156: "火岩鼠", 157: "火暴兽", 158: "小锯鳄", 159: "蓝鳄", 160: "大力鳄", 161: "尾立",
+                    162: "大尾立", 163: "咕咕", 164: "猫头夜鹰", 165: "芭瓢虫", 166: "安瓢虫", 167: "圆丝蛛", 168: "阿利多斯", 169: "叉字蝠", 170: "灯笼鱼", 171: "电灯怪",
+                    172: "皮丘", 173: "皮宝宝", 174: "宝宝丁", 175: "波克比", 176: "波克基古", 177: "天然雀", 178: "天然鸟", 179: "咩利羊", 180: "茸茸羊", 181: "电龙",
+                    182: "美丽花", 183: "玛力露", 184: "玛力露丽", 185: "胡说树", 186: "蚊香蛙皇", 187: "毽子草", 188: "毽子花", 189: "毽子棉", 190: "长尾怪手", 191: "向日种子",
+                    192: "向日花怪", 193: "蜻蜻蜓", 194: "乌波", 195: "沼王", 196: "太阳伊布", 197: "月亮伊布", 198: "黑暗鸦", 199: "呆呆王", 200: "梦妖", 201: "未知图腾",
+                    202: "果然翁", 203: "麒麟奇", 204: "榛果球", 205: "佛烈托斯", 206: "土龙弟弟", 207: "天蝎", 208: "大钢蛇", 209: "布鲁", 210: "布鲁皇", 211: "千针鱼",
+                    212: "巨钳螳螂", 213: "壶壶", 214: "赫拉克罗斯", 215: "狃拉", 216: "熊宝宝", 217: "圈圈熊", 218: "熔岩虫", 219: "熔岩蜗牛", 220: "小山猪", 221: "长毛猪",
+                    222: "太阳珊瑚", 223: "铁炮鱼", 224: "章鱼桶", 225: "信使鸟", 226: "巨翅飞鱼", 227: "盔甲鸟", 228: "戴鲁比", 229: "黑鲁加", 230: "刺龙王", 231: "小小象",
+                    232: "顿甲", 233: "多边兽Ⅱ", 234: "惊角鹿", 235: "图图犬", 236: "巴尔郎", 237: "柯波朗", 238: "迷唇娃", 239: "电击怪", 240: "小鸭嘴龙", 241: "大奶罐",
+                    242: "幸福蛋", 243: "雷公", 244: "炎帝", 245: "水君", 246: "幼基拉斯", 247: "沙基拉斯", 248: "班基拉斯", 249: "洛奇亚", 250: "凤王", 251: "雪拉比"
                 };
 
                 const typeTranslations = {
@@ -176,6 +261,11 @@
                     steel: '钢', fairy: '妖精'
                 };
 
+                const statTranslations = {
+                    hp: '生命值', attack: '攻击', defense: '防御',
+                    'special-attack': '特攻', 'special-defense': '特防', speed: '速度'
+                };
+
                 const pokemonTypes = Object.entries(typeTranslations).map(([name, displayName]) => ({
                     name, displayName
                 }));
@@ -183,8 +273,8 @@
                 const fetchPokemon = async () => {
                     try {
                         loading.value = true;
-                        // Fetch first 151 Pokemon
-                        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=151');
+                        // 加载前 251 只宝可梦 (Gen 1 + Gen 2)
+                        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=251');
                         const data = await response.json();
                         
                         const detailedPromises = data.results.map(async (p) => {
@@ -198,23 +288,33 @@
                                 image: details.sprites.other['official-artwork'].front_default,
                                 types: details.types.map(t => t.type.name),
                                 height: details.height,
-                                weight: details.weight
+                                weight: details.weight,
+                                stats: details.stats.map(s => ({
+                                    name: s.stat.name,
+                                    value: s.base_stat
+                                }))
                             };
                         });
 
                         const apiPokemon = await Promise.all(detailedPromises);
 
-                        // 添加自定义宝可梦“小李”
+                        // 自定义宝可梦“小李”
                         const customPokemon = {
-                            id: 999, // 给一个特殊的 ID
+                            id: 999,
                             name: "Xiao Li",
                             chineseName: "小李",
-                            // 提示：C:\ 开头的本地路径只能在你自己电脑上显示，别人无法在公网上看到。
-                            // 建议：把图片重命名为 xiaoli.jpg 放在 index.html 同级目录下，并上传到 GitHub。
                             image: "xiaoli.jpg", 
-                            types: ["normal", "fighting"], // 属性可以自定义
+                            types: ["normal", "fighting"],
                             height: 175,
-                            weight: 700
+                            weight: 700,
+                            stats: [
+                                { name: 'hp', value: 100 },
+                                { name: 'attack', value: 120 },
+                                { name: 'defense', value: 80 },
+                                { name: 'special-attack', value: 60 },
+                                { name: 'special-defense', value: 80 },
+                                { name: 'speed', value: 110 }
+                            ]
                         };
 
                         pokemonList.value = [customPokemon, ...apiPokemon];
@@ -237,6 +337,16 @@
                     });
                 });
 
+                const showDetail = (pokemon) => {
+                    selectedPokemon.value = pokemon;
+                    document.body.style.overflow = 'hidden'; // 防止背景滚动
+                };
+
+                const closeDetail = () => {
+                    selectedPokemon.value = null;
+                    document.body.style.overflow = 'auto';
+                };
+
                 onMounted(fetchPokemon);
 
                 return {
@@ -246,7 +356,11 @@
                     selectedType,
                     pokemonTypes,
                     typeTranslations,
-                    filteredPokemon
+                    statTranslations,
+                    filteredPokemon,
+                    selectedPokemon,
+                    showDetail,
+                    closeDetail
                 };
             }
         }).mount('#app');
