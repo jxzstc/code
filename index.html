@@ -202,7 +202,22 @@
                             };
                         });
 
-                        pokemonList.value = await Promise.all(detailedPromises);
+                        const apiPokemon = await Promise.all(detailedPromises);
+
+                        // 添加自定义宝可梦“小李”
+                        const customPokemon = {
+                            id: 999, // 给一个特殊的 ID
+                            name: "Xiao Li",
+                            chineseName: "小李",
+                            // 提示：C:\ 开头的本地路径只能在你自己电脑上显示，别人无法在公网上看到。
+                            // 建议：把图片重命名为 xiaoli.png 放在 index.html 同级目录下，并上传到 GitHub。
+                            image: "xiaoli.png", 
+                            types: ["normal", "fighting"], // 属性可以自定义
+                            height: 175,
+                            weight: 700
+                        };
+
+                        pokemonList.value = [customPokemon, ...apiPokemon];
                     } catch (error) {
                         console.error('Error fetching pokemon:', error);
                     } finally {
